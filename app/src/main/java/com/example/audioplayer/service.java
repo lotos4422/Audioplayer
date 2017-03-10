@@ -43,6 +43,11 @@ public class service extends Service {
         }
     }
 
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        Log.d(LOG_TAG,"service destroy");
+    }
 
     public boolean isplaying() {
         if (mediaPlayer.isPlaying()) return true;

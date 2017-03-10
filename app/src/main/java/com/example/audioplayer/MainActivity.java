@@ -20,6 +20,7 @@ public class MainActivity extends Activity implements SeekBar.OnSeekBarChangeLis
     ServiceConnection Conn;
     service myService;
     boolean bound = false;
+    boolean play = true;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -53,6 +54,13 @@ public class MainActivity extends Activity implements SeekBar.OnSeekBarChangeLis
     }
 
 
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        Log.d(LOG_TAG,"Main activity destroy");
+        play = false;
+    }
+
     public void progress() {
         new Thread(new Runnable() {
             @Override
@@ -62,11 +70,7 @@ public class MainActivity extends Activity implements SeekBar.OnSeekBarChangeLis
                 seekBar.setMax(myService.duration());
                 int wait = myService.duration() / 100;
 
-                while (true) {
-                    if (!myService.isplaying()) {
-                        Log.d(LOG_TAG, "Main activity thread stoped");
-                        return;
-                    }
+                while (play) {
                     seekBar.setProgress(myService.progress());
                     try {
                         Thread.sleep(wait);
@@ -74,6 +78,8 @@ public class MainActivity extends Activity implements SeekBar.OnSeekBarChangeLis
                         e.printStackTrace();
                     }
                 }
+                play = true;
+                Log.d(LOG_TAG, "Main activity thread stopped");
             }
         }).start();
 
@@ -107,5 +113,6 @@ public class MainActivity extends Activity implements SeekBar.OnSeekBarChangeLis
         Log.d(LOG_TAG, "Main activity seek to");
         myService.seekto(seekBar.getProgress());
     }
+
 
 }
