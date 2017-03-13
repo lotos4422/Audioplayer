@@ -3,15 +3,12 @@ package com.example.audioplayer;
 
 import android.app.Service;
 import android.content.Intent;
+import android.content.ServiceConnection;
 import android.media.MediaPlayer;
 import android.os.Binder;
 import android.os.IBinder;
 import android.support.annotation.Nullable;
 import android.util.Log;
-
-/**********
- *author maksim kozachenko
- */
 
 public class service extends Service {
 
@@ -28,7 +25,6 @@ public class service extends Service {
         super.onCreate();
     }
 
-
     @Nullable
     @Override
     public IBinder onBind(Intent intent) {
@@ -38,7 +34,6 @@ public class service extends Service {
 
     class LocalBinder extends Binder {
         public service getService() {
-            Log.d(LOG_TAG, "service local binder");
             return service.this;
         }
     }
@@ -46,12 +41,9 @@ public class service extends Service {
     @Override
     public void onDestroy() {
         super.onDestroy();
-        Log.d(LOG_TAG,"service destroy");
-    }
-
-    public boolean isplaying() {
-        if (mediaPlayer.isPlaying()) return true;
-        return false;
+        Log.d(LOG_TAG, "service destroy");
+        mediaPlayer.stop();
+        mediaPlayer = null;
     }
 
     public void play() {
@@ -65,6 +57,12 @@ public class service extends Service {
     public int progress() {
         return mediaPlayer.getCurrentPosition();
     }
+
+    public boolean isplaying() {
+        if (mediaPlayer.isPlaying()) return true;
+        return false;
+    }
+
 
     public void seekto(int position) {
         mediaPlayer.seekTo(position);

@@ -7,20 +7,25 @@ import android.content.ServiceConnection;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.util.Log;
+import android.view.MotionEvent;
 import android.view.View;
 import android.widget.SeekBar;
 
+import java.sql.Time;
+import java.util.StringTokenizer;
+import java.util.Timer;
 
-public class MainActivity extends Activity implements SeekBar.OnSeekBarChangeListener {
+
+public class MainActivity extends Activity implements View.OnTouchListener {
 
     String LOG_TAG = "log";
     SeekBar seekBar;
 
-    Intent intent;
     ServiceConnection Conn;
     service myService;
-    boolean bound = false;
-    boolean play = true;
+    boolean bound;
+    boolean hasplay = true;
+    boolean stopservice;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -28,10 +33,10 @@ public class MainActivity extends Activity implements SeekBar.OnSeekBarChangeLis
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        intent = new Intent(this, service.class);
-        seekBar = (SeekBar) findViewById(R.id.seekBar);
-        seekBar.setOnSeekBarChangeListener(this);
+        startService(new Intent(this, service.class));
 
+        seekBar = (SeekBar) findViewById(R.id.seekBar);
+        seekBar.setOnTouchListener(this);
 
         Conn = new ServiceConnection() {
 
@@ -39,8 +44,11 @@ public class MainActivity extends Activity implements SeekBar.OnSeekBarChangeLis
                 Log.d(LOG_TAG, "MainActivity onServiceConnected");
                 myService = ((service.LocalBinder) binder).getService();
                 bound = true;
-                if (myService.isplaying())
-                    progress();
+                if (myService.isplaying() == true)
+                    stopservice = false;
+                else
+                    stopservice = true;
+                progress();
             }
 
             public void onServiceDisconnected(ComponentName name) {
@@ -48,38 +56,50 @@ public class MainActivity extends Activity implements SeekBar.OnSeekBarChangeLis
                 bound = false;
             }
         };
-
-        bindService(intent, Conn, BIND_AUTO_CREATE);
-
+        bindService(new Intent(this, service.class), Conn, 0);
     }
 
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        Log.d(LOG_TAG, "Main activity on save instance state");
+        hasplay = false;
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        Log.d(LOG_TAG, "Main activity on resume");
+        if (!hasplay)
+            progress();
+        hasplay = true;
+    }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        Log.d(LOG_TAG,"Main activity destroy");
-        play = false;
+        Log.d(LOG_TAG, "Main activity destroy");
+        //if (!hasplay)
+        unbindService(Conn);
+        if (stopservice) {
+            hasplay = false;
+            stopService(new Intent(this, service.class));
+        }
     }
 
     public void progress() {
         new Thread(new Runnable() {
             @Override
             public void run() {
+
                 Log.d(LOG_TAG, "Main activity progress seek bar");
 
                 seekBar.setMax(myService.duration());
-                int wait = myService.duration() / 100;
 
-                while (play) {
+                while (hasplay)
                     seekBar.setProgress(myService.progress());
-                    try {
-                        Thread.sleep(wait);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
-                }
-                play = true;
-                Log.d(LOG_TAG, "Main activity thread stopped");
+
+                Log.d(LOG_TAG, "Main activity progress thread stopped");
             }
         }).start();
 
@@ -87,32 +107,20 @@ public class MainActivity extends Activity implements SeekBar.OnSeekBarChangeLis
 
     public void onClickStart(View v) {
         Log.d(LOG_TAG, "Main activity on click start");
-
         myService.play();
-        progress();
+        stopservice = false;
     }
 
     public void onClickStop(View v) {
         Log.d(LOG_TAG, "Main activity on click stop");
         myService.stop();
-    }
-
-
-    @Override
-    public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-
+        stopservice = true;
     }
 
     @Override
-    public void onStartTrackingTouch(SeekBar seekBar) {
-
-    }
-
-    @Override
-    public void onStopTrackingTouch(SeekBar seekBar) {
-        Log.d(LOG_TAG, "Main activity seek to");
+    public boolean onTouch(View v, MotionEvent event) {
         myService.seekto(seekBar.getProgress());
+        Log.d(LOG_TAG, "progress changed");
+        return false;
     }
-
-
 }
