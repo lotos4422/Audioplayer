@@ -8,11 +8,14 @@ import android.media.MediaPlayer;
 import android.os.Binder;
 import android.os.IBinder;
 import android.support.annotation.Nullable;
+import android.util.Log;
 
 
 import java.io.IOException;
 
 public class service extends Service {
+
+    private final String TAG = service.class.getSimpleName();
 
     MediaPlayer mediaPlayer;
 
@@ -31,7 +34,9 @@ public class service extends Service {
     }
 
     class LocalBinder extends Binder {
+
         public service getService() {
+            Log.i(TAG, "getService: ");
             return service.this;
         }
     }
@@ -39,7 +44,8 @@ public class service extends Service {
     @Override
     public void onDestroy() {
         super.onDestroy();
-        if (mediaPlayer!=null) {
+        Log.i(TAG, "onDestroy: ");
+        if (mediaPlayer != null) {
             mediaPlayer.release();
             mediaPlayer = null;
         }
@@ -47,6 +53,8 @@ public class service extends Service {
     }
 
     public void play(String path) {
+        Log.i(TAG, "play: ");
+
         mediaPlayer.reset();
         try {
             mediaPlayer.setDataSource(path);
@@ -54,7 +62,7 @@ public class service extends Service {
             e.printStackTrace();
         }
         mediaPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
-       try {
+        try {
             mediaPlayer.prepare();
         } catch (IOException e) {
             e.printStackTrace();
@@ -62,29 +70,36 @@ public class service extends Service {
         mediaPlayer.start();
     }
 
-    public void playerresume(){
+    public void playerResume() {
+        Log.i(TAG, "player resume: ");
         mediaPlayer.start();
     }
 
-    public void playerstop() {
+    public void playerStop() {
+        Log.i(TAG, "playerstop: ");
         mediaPlayer.pause();
     }
 
-    public int playerprogress() {
+    public int playerProgress() {
+        if (mediaPlayer == null)
+            return 0;
         return mediaPlayer.getCurrentPosition();
     }
 
-    public boolean isplaying() {
+    public boolean isPlaying() {
         if (mediaPlayer.isPlaying()) return true;
         return false;
     }
 
 
-    public void seekto(int position) {
+    public void seekTo(int position){
+        Log.i(TAG, "seekto: ");
         mediaPlayer.seekTo(position);
     }
 
     public int duration() {
+        if (mediaPlayer == null)
+            return 0;
         return mediaPlayer.getDuration();
     }
 
