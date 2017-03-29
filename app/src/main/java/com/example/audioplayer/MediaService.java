@@ -13,9 +13,9 @@ import android.util.Log;
 
 import java.io.IOException;
 
-public class service extends Service {
+public class MediaService extends Service {
 
-    private final String TAG = service.class.getSimpleName();
+    private final String TAG = MediaService.class.getSimpleName();
 
     MediaPlayer mediaPlayer;
 
@@ -35,9 +35,9 @@ public class service extends Service {
 
     class LocalBinder extends Binder {
 
-        public service getService() {
+        public MediaService getService() {
             Log.i(TAG, "getService: ");
-            return service.this;
+            return MediaService.this;
         }
     }
 
@@ -87,8 +87,7 @@ public class service extends Service {
     }
 
     public boolean isPlaying() {
-        if (mediaPlayer.isPlaying()) return true;
-        return false;
+        return mediaPlayer.isPlaying();
     }
 
 

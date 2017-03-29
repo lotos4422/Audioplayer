@@ -3,16 +3,20 @@ package com.example.audioplayer;
 import android.content.ContentProvider;
 import android.content.ContentValues;
 import android.content.Context;
+import android.content.UriMatcher;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.net.Uri;
 
-public class musicdb extends ContentProvider {
+public class MusicDB extends ContentProvider {
 
     private static final int DB_VERSION = 1;
-    private static final String DB_NAME = "mydb";
+    private static final String DB_NAME = "musicdb";
+    private static final String AUTHORITY = "musicdbauth";
+    static final int URI_LIST = 1;
     static final String DB_TABLE_NAME = "musiclist";
+    private static final String CONTENT_TYPE = "vnd.android.cursor.dir/vnd." + AUTHORITY + "." + DB_TABLE_NAME;
     static final String DB_SONG_NAME = "songname";
     static final String DB_SDPATH = "localpath";
     static final String DB_IPATH = "ipath";
@@ -26,6 +30,13 @@ public class musicdb extends ContentProvider {
     databasehelper dbHelper;
     SQLiteDatabase database;
 
+    private static final UriMatcher uriMatcher;
+
+    static {
+        uriMatcher = new UriMatcher(UriMatcher.NO_MATCH);
+        uriMatcher.addURI(AUTHORITY, DB_TABLE_NAME, URI_LIST);
+    }
+
     @Override
     public int delete(Uri uri, String selection, String[] selectionArgs) {
         // Implement this to handle requests to delete one or more rows.
@@ -34,8 +45,8 @@ public class musicdb extends ContentProvider {
 
     @Override
     public String getType(Uri uri) {
-        // TODO: Implement this to handle requests for the MIME type of the data
-        // at the given URI.
+        if (uriMatcher.match(uri) == URI_LIST)
+            return CONTENT_TYPE;
         throw new UnsupportedOperationException("Not yet implemented");
     }
 
@@ -50,7 +61,7 @@ public class musicdb extends ContentProvider {
     @Override
     public boolean onCreate() {
         dbHelper = new databasehelper(getContext());
-        return dbHelper == null ? true : false;
+        return dbHelper == null;
     }
 
     @Override

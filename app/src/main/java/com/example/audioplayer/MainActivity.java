@@ -31,20 +31,21 @@ public class MainActivity extends Activity implements View.OnTouchListener, Adap
 
 
     SeekBar seekBar;
-    ListView listViewmusic;
-    TextView textViewlastplay;
-    TextView currentprogress;
+    ListView listViewMusic;
+    TextView textViewlastPlay;
+    TextView currentProgress;
     ProgressBar progressBar;
     MusicSearch musicSearch;
-    Uri dbURI = Uri.parse("content://musicdbauth/" + musicdb.DB_TABLE_NAME);
-    MusicProgress update_music_progress;
+    Uri dbURI = Uri.parse("content://musicdbauth/" + MusicDB.DB_TABLE_NAME);
+    MusicProgress updateMusicProgress;
 
-    private ServiceConnection Conn;
-    private service mediaservice;
+    private ServiceConnection mediaConnection;
+    private MediaService mediaService;
     private boolean bound;
     private SharedPreferences settings;
     final String PREFS_NAME = "settings";
-    private static String lastplay = "";
+    private static final int FORMAT_DATA=1000;
+    private static String lastPlay = "";
     private boolean dbupdate;
     private final String TAG = MainActivity.class.getSimpleName();
 
@@ -54,20 +55,20 @@ public class MainActivity extends Activity implements View.OnTouchListener, Adap
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        startService(new Intent(this, service.class));
+        startService(new Intent(this, MediaService.class));
 
         settings = getSharedPreferences(PREFS_NAME, 0);
-        lastplay = settings.getString("last_play", " ");
-        textViewlastplay = (TextView) findViewById(R.id.nowPlay);
-        textViewlastplay.setText(lastplay);
+        lastPlay = settings.getString("last_play", " ");
+        textViewlastPlay = (TextView) findViewById(R.id.nowPlay);
+        textViewlastPlay.setText(lastPlay);
 
         progressBar = (ProgressBar) findViewById(R.id.progressBar);
-        currentprogress = (TextView) findViewById(R.id.cureenttime);
+        currentProgress = (TextView) findViewById(R.id.cureenttime);
 
         seekBar = (SeekBar) findViewById(R.id.seekBar);
         seekBar.setOnTouchListener(this);
-        listViewmusic = (ListView) findViewById(R.id.musiclist);
-        listViewmusic.setOnItemClickListener(this);
+        listViewMusic = (ListView) findViewById(R.id.musiclist);
+        listViewMusic.setOnItemClickListener(this);
 
         musicSearch = new MusicSearch();
         if (settings.getBoolean("db_update", true))
@@ -76,14 +77,14 @@ public class MainActivity extends Activity implements View.OnTouchListener, Adap
             musicSearch.onProgressUpdate();
         }
 
-        Conn = new ServiceConnection() {
+        mediaConnection = new ServiceConnection() {
 
             public void onServiceConnected(ComponentName name, IBinder binder) {
                 Log.i(TAG, "onServiceConnected: ");
-                mediaservice = ((service.LocalBinder) binder).getService();
+                mediaService = ((MediaService.LocalBinder) binder).getService();
                 bound = true;
-                if (mediaservice.isPlaying()) {
-                    seekBar.setMax(mediaservice.duration());
+                if (mediaService.isPlaying()) {
+                    seekBar.setMax(mediaService.duration());
 
                 }
             }
@@ -93,23 +94,23 @@ public class MainActivity extends Activity implements View.OnTouchListener, Adap
                 bound = false;
             }
         };
-        bindService(new Intent(this, service.class), Conn, 0);
-        update_music_progress = (MusicProgress) getLastNonConfigurationInstance();
-        if (update_music_progress == null) {
-            update_music_progress = new MusicProgress();
-            update_music_progress.execute();
+        bindService(new Intent(this, MediaService.class), mediaConnection, 0);
+        updateMusicProgress = (MusicProgress) getLastNonConfigurationInstance();
+        if (updateMusicProgress == null) {
+            updateMusicProgress = new MusicProgress();
+            updateMusicProgress.execute();
         }
-        update_music_progress.link(this);
+        updateMusicProgress.link(this);
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
         Log.i(TAG, "onDestroy: ");
-        unbindService(Conn);
+        unbindService(mediaConnection);
 
         if (this.isFinishing())
-            stopService(new Intent(this, service.class));
+            stopService(new Intent(this, MediaService.class));
 
         settings = getSharedPreferences(PREFS_NAME, 0);
         SharedPreferences.Editor editor = settings.edit();
@@ -119,8 +120,8 @@ public class MainActivity extends Activity implements View.OnTouchListener, Adap
 
     public Object onRetainNonConfigurationInstance() {
         Log.i(TAG, "onRetainNonConfigurationInstance: ");
-        update_music_progress.unLink();
-        return update_music_progress;
+        updateMusicProgress.unLink();
+        return updateMusicProgress;
     }
 
 
@@ -141,7 +142,7 @@ public class MainActivity extends Activity implements View.OnTouchListener, Adap
 
                 try {
                     Thread.sleep(1000);
-                    Time time = new Time(0, 0, activity.mediaservice.playerProgress() / 1000);
+                    Time time = new Time(0, 0, activity.mediaService.playerProgress() / FORMAT_DATA);
                     publishProgress(time.toString());
 
                 } catch (Exception e) {
@@ -153,8 +154,8 @@ public class MainActivity extends Activity implements View.OnTouchListener, Adap
         protected void onProgressUpdate(String... values) {
             super.onProgressUpdate(values);
             try {
-                activity.seekBar.setProgress(activity.mediaservice.playerProgress());
-                activity.currentprogress.setText(values[0]);
+                activity.seekBar.setProgress(activity.mediaService.playerProgress());
+                activity.currentProgress.setText(values[0]);
             } catch (Exception e) {
             }
         }
@@ -164,17 +165,17 @@ public class MainActivity extends Activity implements View.OnTouchListener, Adap
 
     public void onClickStart(View v) {
         Log.i(TAG, "onClickStart: ");
-        mediaservice.playerResume();
+        mediaService.playerResume();
     }
 
     public void onClickStop(View v) {
         Log.i(TAG, "onClickStop: ");
-        mediaservice.playerStop();
+        mediaService.playerStop();
     }
 
     @Override
     public boolean onTouch(View v, MotionEvent event) {
-        mediaservice.seekTo(seekBar.getProgress());
+        mediaService.seekTo(seekBar.getProgress());
         Log.i(TAG, "onTouch: ");
         return false;
     }
@@ -184,7 +185,7 @@ public class MainActivity extends Activity implements View.OnTouchListener, Adap
         @Override
         protected void onPreExecute() {
             super.onPreExecute();
-            listViewmusic.setVisibility(View.INVISIBLE);
+            listViewMusic.setVisibility(View.INVISIBLE);
             progressBar.setVisibility(View.VISIBLE);
         }
 
@@ -209,7 +210,7 @@ public class MainActivity extends Activity implements View.OnTouchListener, Adap
         protected void onPostExecute(Void aVoid) {
             super.onPostExecute(aVoid);
             progressBar.setVisibility(View.INVISIBLE);
-            listViewmusic.setVisibility(View.VISIBLE);
+            listViewMusic.setVisibility(View.VISIBLE);
         }
 
         private void search(File[] file) {
@@ -218,8 +219,8 @@ public class MainActivity extends Activity implements View.OnTouchListener, Adap
                     String s = f.getAbsolutePath();
                     s = s.substring(s.lastIndexOf("/") + 1);
                     ContentValues values = new ContentValues();
-                    values.put(musicdb.DB_SONG_NAME, s);
-                    values.put(musicdb.DB_SDPATH, f.getAbsolutePath());
+                    values.put(MusicDB.DB_SONG_NAME, s);
+                    values.put(MusicDB.DB_SDPATH, f.getAbsolutePath());
                     getContentResolver().insert(dbURI, values);
 
                 }
@@ -231,14 +232,14 @@ public class MainActivity extends Activity implements View.OnTouchListener, Adap
         private void setListview() {
             Cursor cursor = getContentResolver().query(dbURI, null, null, null, null);
             cursor.moveToFirst();
-            int nameindex = cursor.getColumnIndex(musicdb.DB_SONG_NAME);
+            int nameindex = cursor.getColumnIndex(MusicDB.DB_SONG_NAME);
             ArrayList<String> s = new ArrayList<String>();
             while (!cursor.isAfterLast()) {
                 s.add(cursor.getString(nameindex));
                 cursor.moveToNext();
             }
             ArrayAdapter<String> adapter = new ArrayAdapter<String>(getBaseContext(), android.R.layout.simple_list_item_1, s);
-            listViewmusic.setAdapter(adapter);
+            listViewMusic.setAdapter(adapter);
             cursor.close();
         }
     }
@@ -250,16 +251,16 @@ public class MainActivity extends Activity implements View.OnTouchListener, Adap
         Cursor cursor = getContentResolver().query(dbURI, null, "_id = " + select.toString(), null, null);
         cursor.moveToFirst();
 
-        int indexsong = cursor.getColumnIndex(musicdb.DB_SONG_NAME);
+        int indexsong = cursor.getColumnIndex(MusicDB.DB_SONG_NAME);
         settings = getSharedPreferences(PREFS_NAME, 0);
         SharedPreferences.Editor editor = settings.edit();
         editor.putString("last_play", cursor.getString(indexsong));
-        textViewlastplay.setText(cursor.getString(indexsong));
+        textViewlastPlay.setText(cursor.getString(indexsong));
         editor.apply();
 
-        int indexsd = cursor.getColumnIndex(musicdb.DB_SDPATH);
-        mediaservice.play(cursor.getString(indexsd));
+        int indexsd = cursor.getColumnIndex(MusicDB.DB_SDPATH);
+        mediaService.play(cursor.getString(indexsd));
         cursor.close();
-        seekBar.setMax(mediaservice.duration());
+        seekBar.setMax(mediaService.duration());
     }
 }
